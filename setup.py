@@ -5,7 +5,7 @@ from setuptools import setup
 from abe import __version__
 
 setup(
-    name='ABE-mocks for python',
+    name='abe-python',
     description='Parse ABE files for usage within python tests',
     version=__version__,
     author='Carles Barrobés',
