@@ -20,5 +20,24 @@ class AbeMock(object):
 
         # Make all example requests and reponses accessible via dot syntax
         # (e.g. mock["OK"].request.status)
-        for k, v in self.examples.items():
-            self.examples[k] = dotify(v)
+        for key, value in self.examples.items():
+            # Add the request URL automatically if missing.
+            self._feed_inherited_fields(value, 'request', ['url', 'method'])
+            self.examples[key] = dotify(value)
+
+    def _feed_inherited_fields(self, value, where, inheritable):
+        """
+        If missing in request or response, some fields are inherited.
+
+        URL and method are defined at the top level. They don't need to be
+        redefined in example requests or responses.
+
+        :param where: 'request' or 'response'
+        :param inheritable: list of inheritable fields
+
+        """
+        if where not in value:
+            value[where] = {}
+        for key in inheritable:
+            if key not in value[where]:
+                value[where][key] = getattr(self, key)
