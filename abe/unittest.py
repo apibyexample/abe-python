@@ -1,5 +1,4 @@
 from copy import copy
-from operator import attrgetter
 import os
 
 from .mocks import AbeMock
@@ -91,7 +90,7 @@ class AbeTestMixin(object):
                     fails.append(element)
                     if not data1_elements:
                         message = '\n*\n'.join(
-                            map(attrgetter('message'), exceptions)
+                            map(str, exceptions)
                         )
                         raise type(exceptions[0])(message)
             data1_elements.extend(fails)
@@ -115,4 +114,5 @@ class AbeTestMixin(object):
 
         self.assertEqual(url, sample_request.url)
         self.assertEqual(response.status_code, sample_response.status)
-        self.assert_data_equal(response.data, sample_response.body)
+        if 'body' in sample_response:
+            self.assert_data_equal(response.data, sample_response.body)
