@@ -1,5 +1,4 @@
 from datetime import datetime
-import decimal
 import sys
 
 _PY3 = sys.version_info >= (3, 0)
@@ -20,7 +19,7 @@ def to_unicode(data):
     """
     if isinstance(data, datetime):
         data = datetime_to_string(data)
-    elif isinstance(data, decimal.Decimal):
+    else:
         data = str(data)
 
     if not _PY3:
