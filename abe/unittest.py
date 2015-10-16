@@ -106,7 +106,8 @@ class AbeTestMixin(object):
         :param url:
             The actual URL we want to compare with the sample
         :param response:
-            The actual API response we want to match with the sample
+            The actual API response we want to match with the sample.
+            It is assumed to be a Django Rest Framework response object
         """
         sample = self.load_sample(path)
         sample_request = sample.examples[label].request
@@ -115,4 +116,5 @@ class AbeTestMixin(object):
         self.assertEqual(url, sample_request.url)
         self.assertEqual(response.status_code, sample_response.status)
         if 'body' in sample_response:
-            self.assert_data_equal(response.data, sample_response.body)
+            response_parsed = response.data
+            self.assert_data_equal(response_parsed, sample_response.body)
