@@ -36,7 +36,7 @@ class AbeTestMixin(object):
 
     def assert_data_equal(self, data1, data2):
         """
-        Two elements are recursively equal without taking order into account
+        Two elements are recursively equal
         """
         try:
             if isinstance(data1, list):
@@ -69,7 +69,7 @@ class AbeTestMixin(object):
 
     def assert_data_list_equal(self, data1, data2):
         """
-        Two lists are recursively equal without taking order into account
+        Two lists are recursively equal, including ordering.
         """
         self.assertEqual(
             len(data1), len(data2),
@@ -77,23 +77,19 @@ class AbeTestMixin(object):
                 data1, data2)
         )
 
-        data1_elements = copy(data1)
-        for element2 in data2:
-            fails, exceptions, found = [], [], False
-            while data1_elements and not found:
-                element = data1_elements.pop()
-                try:
-                    self.assert_data_equal(element, element2)
-                    found = True
-                except AssertionError as exc:
-                    exceptions.append(exc)
-                    fails.append(element)
-                    if not data1_elements:
-                        message = '\n*\n'.join(
-                            map(str, exceptions)
-                        )
-                        raise type(exceptions[0])(message)
-            data1_elements.extend(fails)
+        exceptions = []
+        for element, element2 in zip(data1, data2):
+            try:
+                self.assert_data_equal(element, element2)
+            except AssertionError as exc:
+                exceptions.append(exc)
+
+        if exceptions:
+            message = '\n*\n'.join(
+                map(str, exceptions)
+            )
+            raise type(exceptions[0])(message)
+
 
     def assert_matches_sample(self, path, label, url, response):
         """
