@@ -1,4 +1,3 @@
-from copy import copy
 import os
 
 from .mocks import AbeMock
@@ -89,7 +88,6 @@ class AbeTestMixin(object):
                 map(str, exceptions)
             )
             raise type(exceptions[0])(message)
-
 
     def assert_matches_sample(self, path, label, url, response):
         """
