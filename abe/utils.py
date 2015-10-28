@@ -3,6 +3,9 @@ import sys
 
 _PY3 = sys.version_info >= (3, 0)
 
+if _PY3:
+    unicode = str
+
 
 def datetime_to_string(value):
     representation = value.isoformat()
@@ -22,7 +25,6 @@ def to_unicode(data):
     else:
         data = str(data)
 
-    if not _PY3:
-        if isinstance(data, str):
-            data = unicode(data)
+    if not _PY3 and isinstance(data, str):
+        data = unicode(data)
     return data
