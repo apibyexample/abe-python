@@ -89,6 +89,24 @@ class AbeTestMixin(object):
             )
             raise type(exceptions[0])(message)
 
+    def assert_headers_contain(self, response_data, spec_data):
+        """
+        response_data headers contain all headers defined in spec_data
+        """
+        for expected_header, expected_value in spec_data.items():
+            django_expected_header = (
+                'HTTP_' + expected_header.upper().replace('-', '_')
+            )
+            actual_val = response_data.get(
+                expected_header,
+                response_data.get(django_expected_header)
+            )
+            self.assertEqual(
+                expected_value, actual_val,
+                "Incorrect or missing value specified for "
+                "header {0}".format(expected_header)
+            )
+
     def assert_matches_sample(self, path, label, url, response):
         """
         Check a URL and response against a sample.
@@ -108,6 +126,11 @@ class AbeTestMixin(object):
         sample_response = sample.examples[label].response
 
         self.assertEqual(url, sample_request.url)
+        if 'headers' in sample_request:
+            self.assert_headers_contain(
+                response.request, sample_request.headers
+            )
+
         self.assertEqual(response.status_code, sample_response.status)
         if 'body' in sample_response:
             response_parsed = response.data
