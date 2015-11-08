@@ -1,0 +1,16 @@
+ep: 0.1.2
+dependencies:
+  - python:
+      version: ">=2.6.0"
+      file: test-requirements.txt
+run:
+  - flake8 abe
+  - coverage erase
+  - coverage run --omit="*/tests/*","*$VIRTUAL_ENV*" -m unittest discover
+  - coverage html
+publish:
+  - git diff --exit-code
+  - ep run
+  - git tag $(python setup.py --version)
+  - git push --tags
+  - python setup.py sdist bdist_wheel upload
