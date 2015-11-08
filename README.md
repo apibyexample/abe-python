@@ -1,3 +1,5 @@
+[![Build Status](https://travis-ci.org/apibyexample/abe-python.svg)](https://travis-ci.org/apibyexample/abe-python)
+
 # Api By Example for Python
 
 This repository includes tools to be able to use the ABE format from within
