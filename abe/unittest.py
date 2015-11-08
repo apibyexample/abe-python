@@ -21,8 +21,8 @@ class AbeTestMixin(object):
         """
         Load a sample file into an AbeMock object.
         """
-        sample_file = os.path.join(self.samples_root, sample_path)
-        return AbeMock(sample_file)
+        sample_filename = os.path.join(self.samples_root, sample_path)
+        return AbeMock.from_filename(sample_filename)
 
     def get_sample_request(self, path, label):
         """
@@ -107,7 +107,32 @@ class AbeTestMixin(object):
                 "header {0}".format(expected_header)
             )
 
-    def assert_matches_sample(self, path, label, url, response):
+    def assert_matches_request(self, sample_request, wsgi_request):
+        """
+        Check that the sample request and wsgi request match.
+        """
+        self.assertEqual(wsgi_request.META['PATH_INFO'], sample_request['url'])
+        self.assertEqual(wsgi_request.META['REQUEST_METHOD'],
+                         sample_request['method'])
+
+        if 'headers' in sample_request:
+            self.assert_headers_contain(
+                wsgi_request.META, sample_request['headers']
+            )
+
+        if 'body' in sample_request:
+            self.assert_data_equal(wsgi_request.POST, sample_request['body'])
+
+    def assert_matches_response(self, sample_response, wsgi_response):
+        """
+        Check that the sample response and wsgi response match.
+        """
+        self.assertEqual(wsgi_response.status_code, sample_response.status)
+        if 'body' in sample_response:
+            response_parsed = wsgi_response.data
+            self.assert_data_equal(response_parsed, sample_response.body)
+
+    def assert_matches_sample(self, path, label, response):
         """
         Check a URL and response against a sample.
 
@@ -115,8 +140,6 @@ class AbeTestMixin(object):
             The name of the sample file, e.g. 'query.json'
         :param label:
             The label for a specific sample request/response, e.g. 'OK'
-        :param url:
-            The actual URL we want to compare with the sample
         :param response:
             The actual API response we want to match with the sample.
             It is assumed to be a Django Rest Framework response object
@@ -125,13 +148,5 @@ class AbeTestMixin(object):
         sample_request = sample.examples[label].request
         sample_response = sample.examples[label].response
 
-        self.assertEqual(url, sample_request.url)
-        if 'headers' in sample_request:
-            self.assert_headers_contain(
-                response.request, sample_request.headers
-            )
-
-        self.assertEqual(response.status_code, sample_response.status)
-        if 'body' in sample_response:
-            response_parsed = response.data
-            self.assert_data_equal(response_parsed, sample_response.body)
+        self.assert_matches_response(sample_response, response)
+        self.assert_matches_request(sample_request, response.wsgi_request)

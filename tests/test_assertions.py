@@ -1,5 +1,7 @@
 from unittest import TestCase
+from mock import Mock
 
+from abe.mocks import AbeMock
 from abe.unittest import AbeTestMixin
 
 
@@ -70,4 +72,65 @@ class TestAssertHeadersEqual(TestCase, AbeTestMixin):
             self.assert_headers_contain(
                 {'HTTP_THIS_CUSTOM': 'Foo'},
                 {'This-Custom-Header': 'Foo'},
+            )
+
+
+class TestAssertMatchesRequest(TestCase, AbeTestMixin):
+
+    def setUp(self):
+        abe_mock = AbeMock({
+            "method": "POST",
+            "url": "/resource/",
+            "examples": {
+                "OK": {
+                    "request": {
+                        "queryParams": {},
+                        "body": {
+                            "name": "My Resource"
+                        },
+                        "headers": {
+                            "This-Custom-Header": 'Foo'
+                        }
+                    }
+                }
+            }
+        })
+        self.sample_request = abe_mock.examples['OK'].request
+
+        self.mock_wsgi_request = Mock(
+            POST={'name': 'My Resource'},
+            META={
+                'HTTP_THIS_CUSTOM_HEADER': 'Foo',
+                'REQUEST_METHOD': 'POST',
+                'PATH_INFO': '/resource/'
+            },
+        )
+
+    def test_success_case(self):
+        self.assert_matches_request(
+            self.sample_request, self.mock_wsgi_request
+        )
+
+    def test_assertion_error_if_url_mismatch(self):
+        self.mock_wsgi_request.META['PATH_INFO'] = '/resourceoops/'
+
+        with self.assertRaises(AssertionError):
+            self.assert_matches_request(
+                self.sample_request, self.mock_wsgi_request
+            )
+
+    def test_assertion_error_if_method_mismatch(self):
+        self.mock_wsgi_request.META['REQUEST_METHOD'] = 'PATCH'
+
+        with self.assertRaises(AssertionError):
+            self.assert_matches_request(
+                self.sample_request, self.mock_wsgi_request
+            )
+
+    def test_assertion_error_if_post_data_mismatch(self):
+        self.mock_wsgi_request.POST = {'a': 1}
+
+        with self.assertRaises(AssertionError):
+            self.assert_matches_request(
+                self.sample_request, self.mock_wsgi_request
             )
