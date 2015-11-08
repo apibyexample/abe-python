@@ -1,4 +1,4 @@
 -r requirements.txt
 
-prospector
+flake8
 coverage
