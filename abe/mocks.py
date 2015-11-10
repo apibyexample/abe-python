@@ -1,4 +1,5 @@
 import json
+import warnings
 
 from supermutes.dot import dotify
 
@@ -10,6 +11,14 @@ class AbeMock(object):
         Initialise an ABE mock from data.
 
         """
+        if not isinstance(data, dict):
+            msg = ('Instanciating an AbeMock by filename is deprecated and '
+                   'will be removed in an upcoming release. '
+                   'Use AbeMock.from_filename instead'.format(data))
+            warnings.warn(msg, DeprecationWarning)
+            with open(data, 'r') as f:
+                data = json.load(f)
+
         # map JSON fields to attributes
         self.__dict__ = data
 

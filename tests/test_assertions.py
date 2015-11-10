@@ -1,8 +1,13 @@
+from os.path import abspath, dirname, join
 from unittest import TestCase
+import warnings
+
 from mock import Mock
 
 from abe.mocks import AbeMock
 from abe.unittest import AbeTestMixin
+
+DATA_DIR = join(dirname(abspath(__file__)), 'data')
 
 
 class TestDataListEqual(TestCase, AbeTestMixin):
@@ -134,3 +139,21 @@ class TestAssertMatchesRequest(TestCase, AbeTestMixin):
             self.assert_matches_request(
                 self.sample_request, self.mock_wsgi_request
             )
+
+
+class TestFilenameInstantiation(TestCase):
+
+    def setUp(self):
+        self.filename = join(DATA_DIR, 'sample.json')
+
+    def test_can_still_use_deprecated_instantiation(self):
+        with warnings.catch_warnings(record=True) as w:
+            warnings.simplefilter("always")
+
+            mock = AbeMock(self.filename)
+
+            self.assertEqual(len(w), 1)
+            self.assertTrue(issubclass(w[-1].category, DeprecationWarning))
+
+    def test_from_filename(self):
+        mock = AbeMock.from_filename(self.filename)
