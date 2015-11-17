@@ -1,7 +1,18 @@
 import os
+import re
 
 from .mocks import AbeMock
-from .utils import to_unicode
+from .utils import normalize
+
+try:
+    basestring        # Only Python2
+except NameError:
+    basestring = str
+
+name = r'[-_a-zA-Z0-9]+'
+parameterized = re.compile(r'\$\{%s\}' % (name,))
+parameterized_int = re.compile(r'^\$\{%s:int\}$' % (name,))
+matcher = r'[\w\d]+'
 
 
 class AbeTestMixin(object):
@@ -33,53 +44,70 @@ class AbeTestMixin(object):
         sample_request = sample.examples[label].request
         return sample_request.body
 
-    def assert_data_equal(self, data1, data2):
+    def assert_item_matches(self, real, sample):
+        """
+        A primitive value matches the sample.
+
+        If the sample represents a parameter, then do simple pattern matching.
+
+        """
+        real = normalize(real)
+        sample = normalize(sample)
+        if isinstance(sample, basestring):
+            if parameterized.search(sample):
+                sample = '^{}$'.format(parameterized.sub(matcher, sample))
+                self.assertTrue(re.search(sample, real))
+                return
+            elif parameterized_int.search(sample):
+                self.assertTrue(isinstance(real, int))
+                return
+
+        self.assertEqual(real, sample)
+
+    def assert_data_equal(self, real, sample):
         """
         Two elements are recursively equal
         """
         try:
-            if isinstance(data1, list):
-                self.assertIsInstance(data2, list)
-                self.assert_data_list_equal(data1, data2)
-            elif isinstance(data1, dict):
-                self.assertIsInstance(data2, dict)
-                self.assert_data_dict_equal(data1, data2)
+            if isinstance(real, list):
+                self.assertIsInstance(sample, list)
+                self.assert_data_list_equal(real, sample)
+            elif isinstance(real, dict):
+                self.assertIsInstance(sample, dict)
+                self.assert_data_dict_equal(real, sample)
             else:
-                data1 = to_unicode(data1)
-                data2 = to_unicode(data2)
-                self.assertIsInstance(data2, data1.__class__)
-                self.assertEqual(data1, data2)
+                self.assert_item_matches(real, sample)
         except AssertionError as exc:
-            message = str(exc) + '\n{}\n{}\n\n'.format(data1, data2)
+            message = str(exc) + '\n{}\n{}\n\n'.format(real, sample)
             raise type(exc)(message)
 
-    def assert_data_dict_equal(self, data1, data2):
+    def assert_data_dict_equal(self, real, sample):
         """
         Two dicts are recursively equal without taking order into account
         """
         self.assertEqual(
-            len(data1), len(data2),
+            len(real), len(sample),
             msg='Number of elements mismatch: {} != {}\n'.format(
-                data1.keys(), data2.keys())
+                real.keys(), sample.keys())
         )
-        for key in data1:
-            self.assertIn(key, data2)
-            self.assert_data_equal(data1[key], data2[key])
+        for key in real:
+            self.assertIn(key, sample)
+            self.assert_data_equal(real[key], sample[key])
 
-    def assert_data_list_equal(self, data1, data2):
+    def assert_data_list_equal(self, real, sample):
         """
         Two lists are recursively equal, including ordering.
         """
         self.assertEqual(
-            len(data1), len(data2),
+            len(real), len(sample),
             msg='Number of elements mismatch: {} {}'.format(
-                data1, data2)
+                real, sample)
         )
 
         exceptions = []
-        for element, element2 in zip(data1, data2):
+        for real_item, sample_item in zip(real, sample):
             try:
-                self.assert_data_equal(element, element2)
+                self.assert_data_equal(real_item, sample_item)
             except AssertionError as exc:
                 exceptions.append(exc)
 

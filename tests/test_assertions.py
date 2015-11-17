@@ -10,8 +10,46 @@ from abe.unittest import AbeTestMixin
 DATA_DIR = join(dirname(abspath(__file__)), 'data')
 
 
-class TestDataListEqual(TestCase, AbeTestMixin):
+class TestAssertDataEqual(TestCase, AbeTestMixin):
 
+    def test_int_value_matches(self):
+        self.assert_data_equal(3, 3)
+
+    def test_int_value_mismatch(self):
+        self.assertRaises(
+            AssertionError,
+            self.assert_data_equal, 3, 33
+        )
+
+    def test_int_vs_string_value_mismatch(self):
+        self.assertRaises(
+            AssertionError,
+            self.assert_data_equal, 3, "3"
+        )
+
+    def test_string_value_matches(self):
+        self.assert_data_equal("hello", "hello")
+
+    def test_string_value_mismatch(self):
+        self.assertRaises(
+            AssertionError,
+            self.assert_data_equal, "hell", "hello"
+        )
+
+    def test_parameterized_string_matches(self):
+        self.assert_data_equal("hello/12/", "hello/${id}/")
+
+    def test_parameterized_string_mismatch(self):
+        self.assertRaises(
+            AssertionError,
+            self.assert_data_equal, "hello/12/", "hell/${id}/"
+        )
+
+    def test_parameterized_int_matches(self):
+        self.assert_data_equal(3, "${id:int}")
+
+
+class TestDataListEqual(TestCase, AbeTestMixin):
 
     def test_simple_list_equality(self):
         self.assert_data_list_equal([1, 2], [1, 2])
@@ -141,6 +179,56 @@ class TestAssertMatchesRequest(TestCase, AbeTestMixin):
             )
 
 
+class TestAssertMatchesResponse(TestCase, AbeTestMixin):
+
+    def setUp(self):
+        abe_mock = AbeMock({
+            "method": "POST",
+            "url": "/resource/",
+            "examples": {
+                "OK": {
+                    "response": {
+                        "status": 201,
+                        "body": {
+                            "id": "${id:int}",
+                            "name": "My Resource",
+                            "url": "http://${server}/${id}"
+                        }
+                    }
+                }
+            }
+        })
+        self.sample_response = abe_mock.examples['OK'].response
+
+    def test_parameterized_values_match(self):
+        response = Mock()
+        response.status_code = 201
+        response.data = {
+            "id": 12,
+            "name": "My Resource",
+            "url": "http://testserver/12"
+        }
+
+        self.assert_matches_response(
+            self.sample_response, response
+        )
+
+    def test_parameterized_values_mismatch(self):
+        response = Mock()
+        response.status_code = 201
+        response.data = {
+            "id": 25,
+            "name": "My Resource",
+            "url": "http://testserver/12/"
+        }
+
+        self.assertRaises(
+            AssertionError,
+            self.assert_matches_response,
+            self.sample_response, response
+        )
+
+
 class TestFilenameInstantiation(TestCase):
 
     def setUp(self):
@@ -150,10 +238,10 @@ class TestFilenameInstantiation(TestCase):
         with warnings.catch_warnings(record=True) as w:
             warnings.simplefilter("always")
 
-            mock = AbeMock(self.filename)
+            AbeMock(self.filename)
 
             self.assertEqual(len(w), 1)
             self.assertTrue(issubclass(w[-1].category, DeprecationWarning))
 
     def test_from_filename(self):
-        mock = AbeMock.from_filename(self.filename)
+        AbeMock.from_filename(self.filename)
