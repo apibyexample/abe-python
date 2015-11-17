@@ -1,19 +1,23 @@
 import json
+import warnings
 
 from supermutes.dot import dotify
 
 
 class AbeMock(object):
 
-    def __init__(self, filename):
+    def __init__(self, data):
         """
         Initialise an ABE mock from data.
 
-        filename is expected to be the path to an ABE file.
-
         """
-        with open(filename, 'r') as f:
-            data = json.load(f)
+        if not isinstance(data, dict):
+            msg = ('Instanciating an AbeMock by filename is deprecated and '
+                   'will be removed in an upcoming release. '
+                   'Use AbeMock.from_filename instead'.format(data))
+            warnings.warn(msg, DeprecationWarning)
+            with open(data, 'r') as f:
+                data = json.load(f)
 
         # map JSON fields to attributes
         self.__dict__ = data
@@ -24,6 +28,18 @@ class AbeMock(object):
             # Add the request URL automatically if missing.
             self._feed_inherited_fields(value, 'request', ['url', 'method'])
             self.examples[key] = dotify(value)
+
+    @classmethod
+    def from_filename(cls, filename):
+        """
+        Initialise an ABE mock from a spec file.
+
+        filename is expected to be the path to an ABE file.
+
+        """
+        with open(filename, 'r') as f:
+            data = json.load(f)
+        return AbeMock(data)
 
     def _feed_inherited_fields(self, value, where, inheritable):
         """
