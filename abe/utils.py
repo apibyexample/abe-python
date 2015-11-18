@@ -34,5 +34,5 @@ def normalize(data):
 
 def subkeys(ignore, key):
     new_keys = filter(lambda s: s.startswith(key + '.'), ignore)
-    new_keys = map(lambda s: s[len(key) + 1:], new_keys)
+    new_keys = list(map(lambda s: s[len(key) + 1:], new_keys))
     return new_keys
