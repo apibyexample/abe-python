@@ -144,8 +144,9 @@ class AbeTestMixin(object):
                 wsgi_request.META, sample_request['headers']
             )
 
-        if 'body' in sample_request and 'body' not in non_strict:
-            self.assert_data_equal(wsgi_request.POST, sample_request['body'])
+        if 'body' in sample_request:
+            self.assert_data_equal(
+                wsgi_request.POST, sample_request['body'], non_strict)
 
     def assert_matches_response(self, sample_response, wsgi_response,
                                 non_strict=None):
