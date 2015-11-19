@@ -8,6 +8,7 @@ run:
   - coverage erase
   - coverage run --omit="*/tests/*","*$VIRTUAL_ENV*" -m unittest discover
   - coverage html
+  - python -m doctest abe/utils.py
 publish:
   - git diff --exit-code
   - ep run
