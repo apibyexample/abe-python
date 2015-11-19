@@ -76,9 +76,9 @@ class AbeTestMixin(object):
             msg='Number of elements mismatch: {} != {}\n'.format(
                 real.keys(), sample.keys())
         )
-        for key in real:
+        for key in sample:
+            self.assertIn(key, real)
             if key not in non_strict:
-                self.assertIn(key, sample)
                 inner_non_strict = subkeys(non_strict, key)
                 self.assert_data_equal(
                     real[key], sample[key], inner_non_strict)

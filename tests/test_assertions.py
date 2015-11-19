@@ -167,32 +167,32 @@ class TestAssertMatchesRequest(TestCase, AbeTestMixin):
             )
 
 
+def _abe_wrap_response(response):
+    abe_mock = AbeMock({
+        "method": "POST",
+        "url": "/resource/",
+        "examples": {
+            "0": {"response": response}
+        }
+    })
+    return abe_mock.examples['0'].response
+
+
 class TestAssertMatchesResponse(TestCase, AbeTestMixin):
 
-    def setUp(self):
-        abe_mock = AbeMock({
-            "method": "POST",
-            "url": "/resource/",
-            "examples": {
-                "OK": {
-                    "response": {
-                        "status": 201,
-                        "body": {
-                            "id": 12,
-                            "name": "My Resource",
-                            "url": "http://example.com/resource/12",
-                            "author": {
-                                "name": "Slough",
-                                "url": "http://example.com/user/25"
-                            }
-                        }
-                    }
+    def test_response_matches_strictly(self):
+        sample = _abe_wrap_response({
+            "status": 201,
+            "body": {
+                "id": 12,
+                "name": "My Resource",
+                "url": "http://example.com/resource/12",
+                "author": {
+                    "name": "Slough",
+                    "url": "http://example.com/user/25"
                 }
             }
         })
-        self.sample_response = abe_mock.examples['OK'].response
-
-    def test_response_matches_strictly(self):
         response = Mock()
         response.status_code = 201
         response.data = {
@@ -206,10 +206,41 @@ class TestAssertMatchesResponse(TestCase, AbeTestMixin):
         }
 
         self.assert_matches_response(
-            self.sample_response, response
+            sample, response
+        )
+
+    def test_strict_response_mismatch(self):
+        sample = _abe_wrap_response({
+            "status": 201,
+            "body": {
+                "url": "http://example.com/resource/12"
+            }
+        })
+        response = Mock()
+        response.status_code = 201
+        response.data = {
+            "url": "http://example.com/resource/13"
+        }
+
+        self.assertRaises(
+            AssertionError,
+            self.assert_matches_response,
+            sample, response
         )
 
     def test_non_strict_response_matches(self):
+        sample = _abe_wrap_response({
+            "status": 201,
+            "body": {
+                "id": 12,
+                "name": "My Resource",
+                "url": "http://example.com/resource/12",
+                "author": {
+                    "name": "Slough",
+                    "url": "http://example.com/user/25"
+                }
+            }
+        })
         response = Mock()
         response.status_code = 201
         response.data = {
@@ -223,29 +254,86 @@ class TestAssertMatchesResponse(TestCase, AbeTestMixin):
         }
 
         self.assert_matches_response(
-            self.sample_response, response,
+            sample, response,
             non_strict=['id', 'url', 'author.url']
         )
 
-    def test_non_strict_list_value_matches(self):
-        abe_mock = AbeMock({
-            "url": "/resource/",
-            "method": "GET",
-            "examples": {
-                "OK": {
-                    "response": {
-                        "status": 200,
-                        "body": {
-                            "contributors": [
-                                {"name": "Jack", "id": 1},
-                                {"name": "Jill", "id": 2},
-                            ]
-                        }
-                    }
+    def test_non_strict_response_mismatch(self):
+        sample = _abe_wrap_response({
+            "status": 201,
+            "body": {
+                "author": {
+                    "name": "Some",
+                    "url": "http://example.com/user/1"
                 }
             }
         })
-        sample = abe_mock.examples['OK'].response
+        response = Mock()
+        response.status_code = 201
+        response.data = {
+            "author": {
+                "name": "Something",
+                "url": "http://testserver/user/25"
+            }
+        }
+
+        self.assertRaises(
+            AssertionError,
+            self.assert_matches_response,
+            sample, response, non_strict=['author.url']
+        )
+
+    def test_strict_response_checks_presence_of_sample_fields(self):
+        sample = _abe_wrap_response({
+            "status": 201,
+            "body": {
+                "id": 1,
+                "name": "Some"
+            }
+        })
+        response = Mock()
+        response.status_code = 201
+        response.data = {
+            "name": "Some",
+        }
+
+        self.assertRaises(
+            AssertionError,
+            self.assert_matches_response,
+            sample, response
+        )
+
+    def test_non_strict_response_checks_presence_of_sample_fields(self):
+        sample = _abe_wrap_response({
+            "status": 201,
+            "body": {
+                "id": 1,
+                "name": "Some"
+            }
+        })
+        response = Mock()
+        response.status_code = 201
+        response.data = {
+            "name": "Some",
+            "url": "http://testserver/user/25"
+        }
+
+        self.assertRaises(
+            AssertionError,
+            self.assert_matches_response,
+            sample, response, non_strict=['url']
+        )
+
+    def test_non_strict_list_value_matches(self):
+        sample = _abe_wrap_response({
+            "status": 200,
+            "body": {
+                "contributors": [
+                    {"name": "Jack", "id": 1},
+                    {"name": "Jill", "id": 2},
+                ]
+            }
+        })
         response = Mock()
         response.status_code = 200
         response.data = {
@@ -256,6 +344,31 @@ class TestAssertMatchesResponse(TestCase, AbeTestMixin):
         }
 
         self.assert_matches_response(
+            sample, response, non_strict=['contributors.id']
+        )
+
+    def test_non_strict_list_value_mismatch(self):
+        sample = _abe_wrap_response({
+            "status": 200,
+            "body": {
+                "contributors": [
+                    {"name": "Jack", "id": 1},
+                    {"name": "Jill", "id": 2},
+                ]
+            }
+        })
+        response = Mock()
+        response.status_code = 200
+        response.data = {
+            "contributors": [
+                {"name": "Joe", "id": 12},
+                {"name": "Jill", "id": 23},
+            ]
+        }
+
+        self.assertRaises(
+            AssertionError,
+            self.assert_matches_response,
             sample, response, non_strict=['contributors.id']
         )
 
