@@ -223,7 +223,8 @@ class TestAssertMatchesResponse(TestCase, AbeTestMixin):
         }
 
         self.assert_matches_response(
-            self.sample_response, response, ignore=['id', 'url', 'author.url']
+            self.sample_response, response,
+            non_strict=['id', 'url', 'author.url']
         )
 
     def test_non_strict_list_value_matches(self):
@@ -255,7 +256,7 @@ class TestAssertMatchesResponse(TestCase, AbeTestMixin):
         }
 
         self.assert_matches_response(
-            sample, response, ignore=['contributors.id']
+            sample, response, non_strict=['contributors.id']
         )
 
 

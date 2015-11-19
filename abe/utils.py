@@ -32,7 +32,15 @@ def normalize(data):
     return data
 
 
-def subkeys(ignore, key):
-    new_keys = filter(lambda s: s.startswith(key + '.'), ignore)
+def subkeys(original, key):
+    """
+    Takes a list of dot-hierarchical values and keeps only matching subkeys.
+
+    Example:
+
+    >>> subkeys(['one.two', 'one.three', 'four'], 'one')
+    ['two', 'three']
+    """
+    new_keys = filter(lambda s: s.startswith(key + '.'), original)
     new_keys = list(map(lambda s: s[len(key) + 1:], new_keys))
     return new_keys
