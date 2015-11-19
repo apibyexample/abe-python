@@ -4,10 +4,11 @@ dependencies:
       version: ">=2.6.0"
       file: test-requirements.txt
 run:
-  - flake8 abe
+  - flake8 abe tests
   - coverage erase
   - coverage run --omit="*/tests/*","*$VIRTUAL_ENV*" -m unittest discover
   - coverage html
+  - python -m doctest abe/utils.py
 publish:
   - git diff --exit-code
   - ep run

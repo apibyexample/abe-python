@@ -16,15 +16,31 @@ def datetime_to_string(value):
     return representation
 
 
-def to_unicode(data):
+def normalize(data):
     """
     Ensure that dates, Decimals and strings become unicode
+
+    Integers, on the other hand, are not converted.
     """
     if isinstance(data, datetime):
         data = datetime_to_string(data)
-    else:
+    elif not isinstance(data, int):
         data = str(data)
 
     if not _PY3 and isinstance(data, str):
         data = unicode(data)
     return data
+
+
+def subkeys(original, key):
+    """
+    Takes a list of dot-hierarchical values and keeps only matching subkeys.
+
+    Example:
+
+    >>> subkeys(['one.two', 'one.three', 'four'], 'one')
+    ['two', 'three']
+    """
+    new_keys = filter(lambda s: s.startswith(key + '.'), original)
+    new_keys = list(map(lambda s: s[len(key) + 1:], new_keys))
+    return new_keys

@@ -1,7 +1,7 @@
 import os
 
 from .mocks import AbeMock
-from .utils import to_unicode
+from .utils import normalize, subkeys
 
 
 class AbeTestMixin(object):
@@ -33,53 +33,71 @@ class AbeTestMixin(object):
         sample_request = sample.examples[label].request
         return sample_request.body
 
-    def assert_data_equal(self, data1, data2):
+    def assert_item_matches(self, real, sample):
+        """
+        A primitive value matches the sample.
+
+        If the sample represents a parameter, then do simple pattern matching.
+
+        """
+        real = normalize(real)
+        sample = normalize(sample)
+        self.assertEqual(real, sample)
+
+    def assert_data_equal(self, real, sample, non_strict=None):
         """
         Two elements are recursively equal
+
+        :param non_strict:
+            Names of fields to match non-strictly. In current implementation,
+            only check for field presence.
         """
+        non_strict = non_strict or []
         try:
-            if isinstance(data1, list):
-                self.assertIsInstance(data2, list)
-                self.assert_data_list_equal(data1, data2)
-            elif isinstance(data1, dict):
-                self.assertIsInstance(data2, dict)
-                self.assert_data_dict_equal(data1, data2)
+            if isinstance(real, list):
+                self.assertIsInstance(sample, list)
+                self.assert_data_list_equal(real, sample, non_strict)
+            elif isinstance(real, dict):
+                self.assertIsInstance(sample, dict)
+                self.assert_data_dict_equal(real, sample, non_strict)
             else:
-                data1 = to_unicode(data1)
-                data2 = to_unicode(data2)
-                self.assertIsInstance(data2, data1.__class__)
-                self.assertEqual(data1, data2)
+                self.assert_item_matches(real, sample)
         except AssertionError as exc:
-            message = str(exc) + '\n{}\n{}\n\n'.format(data1, data2)
+            message = str(exc) + '\n{}\n{}\n\n'.format(real, sample)
             raise type(exc)(message)
 
-    def assert_data_dict_equal(self, data1, data2):
+    def assert_data_dict_equal(self, real, sample, non_strict=None):
         """
         Two dicts are recursively equal without taking order into account
         """
+        non_strict = non_strict or []
         self.assertEqual(
-            len(data1), len(data2),
+            len(real), len(sample),
             msg='Number of elements mismatch: {} != {}\n'.format(
-                data1.keys(), data2.keys())
+                real.keys(), sample.keys())
         )
-        for key in data1:
-            self.assertIn(key, data2)
-            self.assert_data_equal(data1[key], data2[key])
+        for key in sample:
+            self.assertIn(key, real)
+            if key not in non_strict:
+                inner_non_strict = subkeys(non_strict, key)
+                self.assert_data_equal(
+                    real[key], sample[key], inner_non_strict)
 
-    def assert_data_list_equal(self, data1, data2):
+    def assert_data_list_equal(self, real, sample, non_strict=None):
         """
         Two lists are recursively equal, including ordering.
         """
+        non_strict = non_strict or []
         self.assertEqual(
-            len(data1), len(data2),
+            len(real), len(sample),
             msg='Number of elements mismatch: {} {}'.format(
-                data1, data2)
+                real, sample)
         )
 
         exceptions = []
-        for element, element2 in zip(data1, data2):
+        for real_item, sample_item in zip(real, sample):
             try:
-                self.assert_data_equal(element, element2)
+                self.assert_data_equal(real_item, sample_item, non_strict)
             except AssertionError as exc:
                 exceptions.append(exc)
 
@@ -107,32 +125,44 @@ class AbeTestMixin(object):
                 "header {0}".format(expected_header)
             )
 
-    def assert_matches_request(self, sample_request, wsgi_request):
+    def assert_matches_request(self, sample_request, wsgi_request,
+                               non_strict=None):
         """
         Check that the sample request and wsgi request match.
         """
-        self.assertEqual(wsgi_request.META['PATH_INFO'], sample_request['url'])
-        self.assertEqual(wsgi_request.META['REQUEST_METHOD'],
-                         sample_request['method'])
+        non_strict = non_strict or []
 
-        if 'headers' in sample_request:
+        if 'url' not in non_strict:
+            self.assertEqual(wsgi_request.META['PATH_INFO'],
+                             sample_request['url'])
+        if 'method' not in non_strict:
+            self.assertEqual(wsgi_request.META['REQUEST_METHOD'],
+                             sample_request['method'])
+
+        if 'headers' in sample_request and 'headers' not in non_strict:
             self.assert_headers_contain(
                 wsgi_request.META, sample_request['headers']
             )
 
-        if 'body' in sample_request:
+        if 'body' in sample_request and 'body' not in non_strict:
             self.assert_data_equal(wsgi_request.POST, sample_request['body'])
 
-    def assert_matches_response(self, sample_response, wsgi_response):
+    def assert_matches_response(self, sample_response, wsgi_response,
+                                non_strict=None):
         """
         Check that the sample response and wsgi response match.
         """
+        non_strict = non_strict or []
         self.assertEqual(wsgi_response.status_code, sample_response.status)
         if 'body' in sample_response:
             response_parsed = wsgi_response.data
-            self.assert_data_equal(response_parsed, sample_response.body)
+            self.assert_data_equal(
+                response_parsed, sample_response.body, non_strict)
 
-    def assert_matches_sample(self, path, label, response):
+    def assert_matches_sample(
+        self, path, label, response, non_strict_response=None,
+        non_strict_request=None
+    ):
         """
         Check a URL and response against a sample.
 
@@ -143,10 +173,19 @@ class AbeTestMixin(object):
         :param response:
             The actual API response we want to match with the sample.
             It is assumed to be a Django Rest Framework response object
+        :param non_strict:
+            List of fields that will not be checked for strict matching.
+            You can use this to include server-generated fields whose exact
+            value you don't care about in your test, like ids, dates, etc.
         """
+        non_strict_response = non_strict_response or []
+        non_strict_request = non_strict_request or []
         sample = self.load_sample(path)
         sample_request = sample.examples[label].request
         sample_response = sample.examples[label].response
 
-        self.assert_matches_response(sample_response, response)
-        self.assert_matches_request(sample_request, response.wsgi_request)
+        self.assert_matches_response(
+            sample_response, response, non_strict=non_strict_response)
+        self.assert_matches_request(
+            sample_request, response.wsgi_request,
+            non_strict=non_strict_request)
