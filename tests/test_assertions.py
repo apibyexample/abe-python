@@ -166,6 +166,12 @@ class TestAssertMatchesRequest(TestCase, AbeTestMixin):
                 self.sample_request, self.mock_wsgi_request
             )
 
+    def test_matches_non_strict(self):
+        self.mock_wsgi_request.POST = {'name': 'Something else'}
+        self.assert_matches_request(
+            self.sample_request, self.mock_wsgi_request, non_strict=['name']
+        )
+
 
 def _abe_wrap_response(response):
     abe_mock = AbeMock({
