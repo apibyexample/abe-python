@@ -1,4 +1,8 @@
 import os
+try:
+    from urlparse import parse_qs
+except ImportError:
+    from urllib.parse import parse_qs
 
 from .mocks import AbeMock
 from .utils import normalize, subkeys
@@ -125,6 +129,18 @@ class AbeTestMixin(object):
                 "header {0}".format(expected_header)
             )
 
+    def assert_query_params_equal(self, request_data, spec_data):
+        qs = parse_qs(request_data)
+        for k, expected_value in spec_data.items():
+            try:
+                actual_value = qs[k]
+            except KeyError:
+                raise AssertionError('Missing {0} from request'.format(k))
+
+            if len(actual_value) == 1:
+                actual_value = actual_value[0]
+            self.assertEqual(expected_value, actual_value)
+
     def assert_matches_request(self, sample_request, wsgi_request,
                                non_strict=None):
         """
@@ -142,6 +158,12 @@ class AbeTestMixin(object):
         if 'headers' in sample_request and 'headers' not in non_strict:
             self.assert_headers_contain(
                 wsgi_request.META, sample_request['headers']
+            )
+
+        if 'queryParams' in sample_request and 'queryParams' not in non_strict:
+            self.assert_query_params_equal(
+                wsgi_request.META['QUERY_STRING'],
+                sample_request['queryParams']
             )
 
         if 'body' in sample_request:

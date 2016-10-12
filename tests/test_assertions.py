@@ -115,7 +115,10 @@ class TestAssertMatchesRequest(TestCase, AbeTestMixin):
             "examples": {
                 "OK": {
                     "request": {
-                        "queryParams": {},
+                        "queryParams": {
+                            "foo": "1",
+                            "bar": "2"
+                        },
                         "body": {
                             "name": "My Resource"
                         },
@@ -133,7 +136,8 @@ class TestAssertMatchesRequest(TestCase, AbeTestMixin):
             META={
                 'HTTP_THIS_CUSTOM_HEADER': 'Foo',
                 'REQUEST_METHOD': 'POST',
-                'PATH_INFO': '/resource/'
+                'PATH_INFO': '/resource/',
+                'QUERY_STRING': 'foo=1&bar=2'
             },
         )
 
@@ -171,6 +175,13 @@ class TestAssertMatchesRequest(TestCase, AbeTestMixin):
         self.assert_matches_request(
             self.sample_request, self.mock_wsgi_request, non_strict=['name']
         )
+
+    def test_assertion_error_if_query_params_mismatch(self):
+        self.mock_wsgi_request.META['QUERY_STRING'] = "foo=1"
+        with self.assertRaises(AssertionError):
+            self.assert_matches_request(
+                self.sample_request, self.mock_wsgi_request
+            )
 
 
 def _abe_wrap_response(response):
