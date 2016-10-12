@@ -1,5 +1,8 @@
 import os
-import urlparse
+try:
+    from urlparse import parse_qs
+except ImportError:
+    from urllib.parse import parse_qs
 
 from .mocks import AbeMock
 from .utils import normalize, subkeys
@@ -127,7 +130,7 @@ class AbeTestMixin(object):
             )
 
     def assert_query_params_equal(self, request_data, spec_data):
-        qs = urlparse.parse_qs(request_data)
+        qs = parse_qs(request_data)
         for k, expected_value in spec_data.items():
             try:
                 actual_value = qs[k]
